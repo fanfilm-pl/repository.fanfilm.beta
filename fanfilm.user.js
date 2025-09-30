@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         FanFilm
 // @namespace    http://tampermonkey.net/
-// @version      0.1.20250824.0
+// @version      0.1.20250930.0
 // @description  Web service
 // @author       kpl-team
 // @match        http*://filman.cc/*
 // @match        http*://cda-hd.cc/*
+// @match        http*://zaluknij.cc/*
 // @icon         https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/favicon.png
 // @downloadURL  https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/fanfilm.user.js
 // @updateURL    https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/fanfilm.user.js
@@ -21,6 +22,10 @@ var fanfilmMessageTimer = null;
 var fanfilmSendTimer = null;
 const fanfilmMessageHideInterval = 4000;
 const fanfilmUpdateInterval = 5000;
+
+// Zmienne do śledzenia statusu wysyłania
+var fanfilmSendResults = {};
+var fanfilmTotalHosts = 0;
 
 function sleep(ms)
 {
@@ -91,6 +96,28 @@ function fanfilmMessage(cls, msg)
     }, fanfilmMessageHideInterval);
 }
 
+function fanfilmUpdateStatus() {
+    const completed = Object.keys(fanfilmSendResults).length;
+
+    if (completed < fanfilmTotalHosts) {
+        return;
+    }
+
+    const successes = Object.values(fanfilmSendResults).filter(result => result === 'success').length;
+    const errors = Object.values(fanfilmSendResults).filter(result => result === 'error').length;
+
+    if (successes > 0 && errors === 0) {
+        fanfilmMessage('success', '✅ Wysłano');
+    } else if (errors > 0 && successes === 0) {
+        fanfilmMessage('error', '❌ Błąd wysyłania!');
+    } else {
+        fanfilmMessage('partial', `⚠️ Wysłano: ${successes}/${fanfilmTotalHosts}`);
+    }
+
+    fanfilmSendResults = {};
+    fanfilmTotalHosts = 0;
+}
+
 function fanfilmLoadSites(host) {
     let sites = GM_getValue('ff_sites', {});
     let site = sites[location.hostname]
@@ -113,10 +140,13 @@ function fanfilmLoadSites(host) {
     return [sites, site, host_data]
 }
 
-async function fanfilmCookies()
+async function fanfilmCookies(options)
 {
     // Pobranie cookies
     let cookies = await GM.cookie.list({url: location.hostname, partitionKey: {}});
+    if (!options) {
+        options = {}
+    }
     let data = {
         host: location.hostname,
         user_agent: navigator.userAgent,
@@ -126,18 +156,13 @@ async function fanfilmCookies()
     return data
 }
 
-async function fanfilmSendOne(host, cookies)
+async function fanfilmSendOne(host, options)
 {
-    if (!cookies) {
-        cookies = await fanfilmCookies();
+    if (!options) {
+        options = {};
     }
+    const cookies = options.cookies ? options.cookies : await fanfilmCookies(options);
     const hash = toHash(cookies);
-
-    const ffStatus = fanfilmRoot.getElementById("ff-status");
-    if(!hasClass(ffStatus, 'error')) {
-        ffStatus.textContent = "Status: wysyłanie...";
-        ffStatus.className = "sending";
-    }
 
     let [sites, site, site_host] = fanfilmLoadSites(host);
     site_host.cookies_hash = hash;
@@ -155,11 +180,12 @@ async function fanfilmSendOne(host, cookies)
     }
 
     // Post cookies to FanFilm plugin
-    console.log(`[FanFilm] Wysyłanie do serwera ${host}:`, cookies);
+    let data = { ...cookies, forced_by_user: options.forced_by_user ? true : false};
+    console.log(`[FanFilm] Wysyłanie do serwera ${host}:`, data);
     GM.xmlHttpRequest({
         method: "POST",
         url: `http://${host}/cookies`,
-        data: JSON.stringify(cookies),
+        data: JSON.stringify(data),
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
         },
@@ -169,17 +195,20 @@ async function fanfilmSendOne(host, cookies)
             } catch(e) {
                 console.log(`[FanFilm] Odpowiedź serwera ${host} (raw):`, response.responseText);
             }
-            if(!hasClass(ffStatus, 'error')) {
-                // fanfilmMessage('success', `✅ Wysłano do ${host}`);
-                fanfilmMessage('success', `✅ Wysłano`);
-            }
+
+            fanfilmSendResults[host] = 'success';
+            fanfilmUpdateStatus();
+
             let [sites, site, site_host] = fanfilmLoadSites(host);
             site_host.status = 'success';
             GM_setValue('ff_sites', sites);
         },
         onerror: function(err) {
-            console.error("Błąd wysyłania:", err);
-            fanfilmMessage('error', "❌ Błąd wysyłania!");
+            console.error(`Błąd wysyłania do ${host}:`, err);
+
+            fanfilmSendResults[host] = 'error';
+            fanfilmUpdateStatus();
+
             let [sites, site, site_host] = fanfilmLoadSites(host);
             site_host.status = 'error';
             GM_setValue('ff_sites', sites);
@@ -187,24 +216,40 @@ async function fanfilmSendOne(host, cookies)
     });
 }
 
-async function fanfilmSendToAll(cookies)
+async function fanfilmSendToAll(options)
 {
-    if (!cookies) {
-        cookies = await fanfilmCookies();
+    if (!options) {
+        options = {};
+    }
+    if (!options.cookies) {
+        options.cookies = await fanfilmCookies(options);
     }
     const hosts = fanfilmHosts();
     const ffStatus = fanfilmRoot.getElementById("ff-status");
-    ffStatus.textContent = "Status: wysyłanie...";
+
+    // Reset wyników i ustaw liczbę hostów
+    fanfilmSendResults = {};
+    fanfilmTotalHosts = hosts.length;
+
+    if (hosts.length > 1) {
+        ffStatus.textContent = `Status: wysyłanie do ${hosts.length} serwerów...`;
+    } else {
+        ffStatus.textContent = "Status: wysyłanie...";
+    }
     ffStatus.className = "sending";
+
     for(const host of hosts) {
-        fanfilmSendOne(host, cookies);
+        fanfilmSendOne(host, options);
     }
 }
 
-async function fanfilmUpdate()
+async function fanfilmUpdate(options)
 {
-    const data = await fanfilmCookies();
-    const new_hash = toHash(data)
+    if (!options) {
+        options = {};
+    }
+    options.data = await fanfilmCookies(options);
+    const new_hash = toHash(options.data);
     const [sites, site, host_site] = fanfilmLoadSites();
     let should_send = false;
     for (const host of fanfilmHosts()) {
@@ -215,7 +260,7 @@ async function fanfilmUpdate()
         }
     }
     if (should_send) {
-        await fanfilmSendToAll(data);
+        await fanfilmSendToAll(options);
     }
 }
 
@@ -324,6 +369,9 @@ async function fanfilmUpdate()
         }
         #ff-status.error {
             color: red;
+        }
+        #ff-status.partial {
+            color: #FFA500;
         }
       </style>
       <div id="ff-panel">
@@ -444,7 +492,7 @@ async function fanfilmUpdate()
     // Obsługa przycisku "Wyślij"
     ffSend.addEventListener("click", () => {
         fanfilmSaveHosts();
-        fanfilmSendToAll();
+        fanfilmSendToAll({forced_by_user: true});
     });
 
     ffInput.addEventListener("focusout", (e) => {
