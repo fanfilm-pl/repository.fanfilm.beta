@@ -9,8 +9,6 @@
 // @match        http*://ekino.ws/*
 // @match        http*://ekino-tv.pl/*
 // @match        http*://filman.cc/*
-// @match        http*://netmirror.gg/*
-// @match        http*://pcmirror.cc/*
 // @match        http*://net52.cc/*
 // @match        http*://net22.cc/*
 // @icon         https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/favicon.png
