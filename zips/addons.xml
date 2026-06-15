@@ -38,7 +38,7 @@
         </news>
     </extension>
 </addon>
-<addon id="script.fanfilm.media" version="2026.04.01.0" name="FanFilm Themepack" provider-name="FF Team">
+<addon id="script.fanfilm.media" version="2026.06.15.0" name="FanFilm Themepack" provider-name="FF Team">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
     </requires>
