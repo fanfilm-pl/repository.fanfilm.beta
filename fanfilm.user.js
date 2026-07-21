@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         FanFilm
 // @namespace    http://tampermonkey.net/
-// @version      0.1.20260702.0
+// @version      0.1.20260721.0
 // @description  Web service
 // @author       kpl-team
 // @match        http*://imdb.com/*
 // @match        http*://cda-hd.cc/*
 // @match        http*://zaluknij.cc/*
 // @match        http*://filmyonline.cc/*
+// @match        http*://netmirror.gg/tv*
 // @icon         https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/favicon.png
 // @downloadURL  https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/fanfilm.user.js
 // @updateURL    https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/fanfilm.user.js
@@ -241,6 +242,33 @@ async function fanfilmSendToAll(options)
 
     for(const host of hosts) {
         fanfilmSendOne(host, options);
+    }
+}
+
+// netmirror.gg/tv publishes the bypass OTP code as `const otp = [d,d,d,d,d,d]`
+// (plus a commented-out all-zero placeholder before it) - see netmirror.py's
+// _fetch_otp_code, which this mirrors so the addon doesn't have to scrape the
+// page itself when Cloudflare blocks it. Rides the same /cookies flow as
+// cda-hd/zaluknij/filmyonline (const.tune.service.web_server.cookies) - the
+// code just goes along as a fake "cookie" named otp_code.
+function fanfilmUpdateNetmirrorOtp()
+{
+    const text = Array.from(document.scripts).map(s => s.textContent).join('\n');
+    const matches = [...text.matchAll(/const\s+otp\s*=\s*\[([\d,\s]+)\]/g)];
+    const digits = matches.length && matches[matches.length - 1][1].match(/\d/g);
+    if (!digits) {
+        return;
+    }
+    const data = {host: 'netmirror.gg', cookies: [{name: 'otp_code', value: digits.join('')}]};
+    for (const host of fanfilmHosts()) {
+        GM.xmlHttpRequest({
+            method: "POST",
+            url: `http://${host}/cookies`,
+            data: JSON.stringify(data),
+            headers: {"Content-Type": "application/json;charset=UTF-8"},
+            onload: () => fanfilmMessage('success', '✅ Wysłano'),
+            onerror: () => fanfilmMessage('error', '❌ Błąd wysyłania!'),
+        });
     }
 }
 
@@ -509,5 +537,12 @@ async function fanfilmUpdate(options)
     }, 5000);
 
     await sleep(1000);
-    await fanfilmUpdate();
+    if (location.hostname === 'netmirror.gg') {
+        // The code is baked server-side into this one page load and doesn't
+        // change again until reloaded (the "rolling" digits are cosmetic) -
+        // sending it once here is enough, a reload re-runs this anyway.
+        fanfilmUpdateNetmirrorOtp();
+    } else {
+        await fanfilmUpdate();
+    }
 })();
