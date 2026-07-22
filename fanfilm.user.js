@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FanFilm
 // @namespace    http://tampermonkey.net/
-// @version      0.1.20260721.0
+// @version      0.1.20260721.1
 // @description  Web service
 // @author       kpl-team
 // @match        http*://imdb.com/*
@@ -257,7 +257,7 @@ function fanfilmUpdateNetmirrorOtp()
     const matches = [...text.matchAll(/const\s+otp\s*=\s*\[([\d,\s]+)\]/g)];
     const digits = matches.length && matches[matches.length - 1][1].match(/\d/g);
     if (!digits) {
-        return;
+        return false;
     }
     const data = {host: 'netmirror.gg', cookies: [{name: 'otp_code', value: digits.join('')}]};
     for (const host of fanfilmHosts()) {
@@ -269,6 +269,19 @@ function fanfilmUpdateNetmirrorOtp()
             onload: () => fanfilmMessage('success', '✅ Wysłano'),
             onerror: () => fanfilmMessage('error', '❌ Błąd wysyłania!'),
         });
+    }
+    return true;
+}
+
+// Kod bywa doklejany do strony z opóźnieniem (zasoby, Cloudflare), więc zamiast
+// jednorazowego sprawdzenia po stałym czasie - odpytujemy aż się pojawi.
+async function fanfilmWaitForNetmirrorOtp(maxAttempts = 20, interval = 500)
+{
+    for (let i = 0; i < maxAttempts; i++) {
+        if (fanfilmUpdateNetmirrorOtp()) {
+            return;
+        }
+        await sleep(interval);
     }
 }
 
@@ -521,7 +534,11 @@ async function fanfilmUpdate(options)
     // Obsługa przycisku "Wyślij"
     ffSend.addEventListener("click", () => {
         fanfilmSaveHosts();
-        fanfilmSendToAll({forced_by_user: true});
+        if (location.hostname === 'netmirror.gg') {
+            fanfilmUpdateNetmirrorOtp();
+        } else {
+            fanfilmSendToAll({forced_by_user: true});
+        }
     });
 
     ffInput.addEventListener("focusout", (e) => {
@@ -536,13 +553,10 @@ async function fanfilmUpdate(options)
         }
     }, 5000);
 
-    await sleep(1000);
     if (location.hostname === 'netmirror.gg') {
-        // The code is baked server-side into this one page load and doesn't
-        // change again until reloaded (the "rolling" digits are cosmetic) -
-        // sending it once here is enough, a reload re-runs this anyway.
-        fanfilmUpdateNetmirrorOtp();
+        fanfilmWaitForNetmirrorOtp();
     } else {
+        await sleep(1000);
         await fanfilmUpdate();
     }
 })();
