@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <addons>
-<addon id="plugin.video.fanfilm" name="FanFilm" version="2026.10.03.1" provider-name="FF Team">
+<addon id="plugin.video.fanfilm" name="FanFilm" version="2026.11.10.1" provider-name="FF Team">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests"/>
@@ -8,18 +8,22 @@
         <import addon="plugin.video.youtube" optional="true"/>
         <import addon="script.module.pyxbmct"/>
         <import addon="script.module.resolveurl"/>
-        <import addon="script.fanfilm.media" version="2026.08.31.0"/>
+        <import addon="script.fanfilm.media" version="2026.11.10.0"/>
+        <import addon="resource.font.fanfilm" version="2026.10.14.0" optional="true"/>
         <import addon="script.module.inputstreamhelper"/>
         <import addon="script.module.myconnpy"/>
+        <import addon="service.upnext" optional="true"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="default.py">
         <provides>video</provides>
     </extension>
     <!-- <extension point="xbmc.python.script" library="script.py" /> -->
+    <!-- the worker script of the service (RunScript), listed nowhere -->
+    <extension point="xbmc.python.library" library="worker.py"/>
     <extension point="xbmc.service" library="service.py" start="startup"/>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
-        <item library="epg.py">
+        <item library="extsearch.py">
           <label lang="pl">Szukaj w FanFilm</label>
           <visible>String.StartsWith(ListItem.FolderPath,pvr://) + !String.IsEmpty(ListItem.ChannelName)</visible>
         </item>
@@ -38,7 +42,21 @@
         </news>
     </extension>
 </addon>
-<addon id="script.fanfilm.media" version="2026.08.31.0" name="FanFilm Themepack" provider-name="FF Team">
+<addon id="resource.font.fanfilm" name="FanFilm Symbols" version="2026.10.14.0" provider-name="FF Team">
+    <requires>
+        <import addon="kodi.resource" version="1.0.0"/>
+    </requires>
+    <extension point="kodi.resource.font"/>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Symbol font of FanFilm</summary>
+        <summary lang="pl_PL">Font symboli FanFilm</summary>
+        <description lang="en_GB">Symbols (check marks, stars, arrows, media controls, shapes) for the FanFilm windows. Kodi 22+ loads its fonts for every skin.</description>
+        <description lang="pl_PL">Symbole (znaczniki, gwiazdki, strzałki, sterowanie odtwarzaniem, kształty) do okien FanFilm. Kodi 22+ wczytuje jego fonty w każdej skórce.</description>
+        <license>Bitstream Vera License (DejaVu Sans), OFL-1.1 (Noto Sans Symbols, Noto Sans Symbols 2)</license>
+        <platform>all</platform>
+    </extension>
+</addon>
+<addon id="script.fanfilm.media" version="2026.11.10.0" name="FanFilm Themepack" provider-name="FF Team">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
     </requires>
@@ -47,6 +65,143 @@
         <summary>Themes for the FanFilm Addon</summary>
         <description></description>
         <platform>all</platform>
+    </extension>
+</addon>
+<addon id="script.fanfilm.provider.fenom" name="FanFilm Providers: Fenom" version="2026.11.10.0" provider-name="FanFilm">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <!-- the entry in Program add-ons -->
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>executable</provides>
+  </extension>
+  <!-- the worker started by FanFilm (RunScript): a library script is listed nowhere (a listed script runs or stops by a click) -->
+  <extension point="xbmc.python.library" library="worker.py"/>
+  <extension point="xbmc.python.module" library="lib"/>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Fenom family scrapers for FanFilm</summary>
+    <summary lang="pl_PL">Scrapery rodziny Fenom dla FanFilm</summary>
+    <description lang="en_GB">A provider add-on of FanFilm: the scrapers of the Fenom family add-ons (CocoScrapers, POV and others of the Fenom structure) searched in its own worker, the results given to FanFilm.</description>
+    <description lang="pl_PL">Dodatek-dostawca FanFilm: scrapery dodatków rodziny Fenom (CocoScrapers, POV i inne o budowie Fenom) przeszukiwane we własnym skrypcie roboczym, wyniki przekazywane do FanFilm.</description>
+    <license>MIT</license>
+    <platform>all</platform>
+    <assets>
+      <icon>icon.png</icon>
+    </assets>
+  </extension>
+</addon>
+<addon id="script.fanfilm.provider.ffork" name="FanFilm Providers: FanFilm forks" version="2026.11.10.0" provider-name="FanFilm">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <!-- the entry in Program add-ons -->
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>executable</provides>
+  </extension>
+  <!-- the worker started by FanFilm (RunScript): a library script is listed nowhere (a listed script runs or stops by a click) -->
+  <extension point="xbmc.python.library" library="worker.py"/>
+  <extension point="xbmc.python.module" library="lib"/>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">FanFilm fork scrapers for FanFilm</summary>
+    <summary lang="pl_PL">Scrapery forków FanFilm dla FanFilm</summary>
+    <description lang="en_GB">A provider add-on of FanFilm: the scrapers of the FanFilm forks (FanFilm 2 / 3 forks with their own scrapers) searched in its own worker, the results given to FanFilm. A fork disabled in Kodi is searched too (its service off), if chosen in FanFilm.</description>
+    <description lang="pl_PL">Dodatek-dostawca FanFilm: scrapery forków FanFilm (forki FanFilm 2 / 3 z własnymi scraperami) przeszukiwane we własnym skrypcie roboczym, wyniki przekazywane do FanFilm. Fork wyłączony w Kodi też jest przeszukiwany (bez jego serwisu), jeśli wybrany w FanFilm.</description>
+    <license>MIT</license>
+    <platform>all</platform>
+    <assets>
+      <icon>icon.png</icon>
+    </assets>
+  </extension>
+</addon>
+<addon id="script.fanfilm.theme.clay" version="2026.11.08.0" name="FanFilm Clay Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Modelling clay theme for the FanFilm Addon</summary>
+        <description>Puffy pastel modelling clay icons for FanFilm, the pastel pair tells the section. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.deco" version="2026.11.08.0" name="FanFilm Art Deco Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Art deco theme for the FanFilm Addon</summary>
+        <description>Black icons with metal outlines on a sunburst for FanFilm, the metal tells the section. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.glass" version="2026.11.08.0" name="FanFilm Glass Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Cut crystal glass theme for the FanFilm Addon</summary>
+        <description>Tinted cut crystal glass icons over glowing orbs for FanFilm, the tint tells the section. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.manga" version="2026.11.08.0" name="FanFilm Manga Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Manga (shonen) themes for the FanFilm Addon</summary>
+        <description>Shonen manga styled icons, posters and backgrounds for FanFilm. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.neon" version="2026.11.08.0" name="FanFilm Neon Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Neon noir theme for the FanFilm Addon</summary>
+        <description>Glowing neon tube icons in the colors of the section for FanFilm. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.niepodlegla" version="2026.11.08.0" name="FanFilm Niepodległa Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Independent Poland: national theme for the FanFilm Addon</summary>
+        <description>Independent Poland: national theme. FanFilm theme: files missing here come from script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+<addon id="script.fanfilm.theme.paper" version="2026.11.08.0" name="FanFilm Paper Themepack" provider-name="FF Team">
+    <extension point="kodi.resource.images" compile="false" type="fanfilm.theme"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>Crumpled paper theme for the FanFilm Addon</summary>
+        <description>Icons on tiles of crumpled colored paper (color = section) for FanFilm. FanFilm theme: files missing here fall back to script.fanfilm.media.</description>
+        <platform>all</platform>
+        <license>CC-BY-4.0</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
     </extension>
 </addon>
 <addon id="repository.fanfilm.beta" name="FanFilm Repository (BETA)" version="1.1" provider-name="fanfilm">
