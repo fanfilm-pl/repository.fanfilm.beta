@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FanFilm
 // @namespace    http://tampermonkey.net/
-// @version      0.1.20260815.2
+// @version      0.1.20261113.1
 // @description  Web service
 // @author       kpl-team
 // @match        http*://imdb.com/*
@@ -9,6 +9,7 @@
 // @match        http*://cda-hd.cc/*
 // @match        http*://zaluknij.cc/*
 // @match        http*://filmyonline.cc/*
+// @match        http*://filman.cc/*
 // @match        http*://netmirror.gg/tv*
 // @icon         https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/favicon.png
 // @downloadURL  https://raw.githubusercontent.com/fanfilm-pl/repository.fanfilm.beta/refs/heads/main/fanfilm.user.js
@@ -28,6 +29,7 @@ const fanfilmUpdateInterval = 5000;
 
 // Zmienne do śledzenia statusu wysyłania
 var fanfilmSendResults = {};
+var fanfilmSendWarning = '';  // the warning of a FanFilm answer (shown in the status)
 var fanfilmTotalHosts = 0;
 
 function sleep(ms)
@@ -109,7 +111,9 @@ function fanfilmUpdateStatus() {
     const successes = Object.values(fanfilmSendResults).filter(result => result === 'success').length;
     const errors = Object.values(fanfilmSendResults).filter(result => result === 'error').length;
 
-    if (successes > 0 && errors === 0) {
+    if (successes > 0 && errors === 0 && fanfilmSendWarning) {
+        fanfilmMessage('partial', `⚠️ ${fanfilmSendWarning}`);  // sent, but nothing usable (e.g. IMDb without at-main)
+    } else if (successes > 0 && errors === 0) {
         fanfilmMessage('success', '✅ Wysłano');
     } else if (errors > 0 && successes === 0) {
         fanfilmMessage('error', '❌ Błąd wysyłania!');
@@ -119,6 +123,7 @@ function fanfilmUpdateStatus() {
 
     fanfilmSendResults = {};
     fanfilmTotalHosts = 0;
+    fanfilmSendWarning = '';
 }
 
 function fanfilmLoadSites(host) {
@@ -181,8 +186,8 @@ function fanfilmExtractImdbUser()
 }
 
 // Leci przez /cookies (jak reszta ciasteczek) na każdą skonfigurowaną instancję Kodi - tam,
-// zgodnie z const.py (web_server.cookies['www.imdb.com'][':imdb_user_id']), id jest dopisywane
-// do imdb.user (append), nigdy nie nadpisuje - to pole może już mieć innych userów.
+// zgodnie z const.py (web_server.cookies['www.imdb.com'][':imdb_user_id']) FanFilm tworzy publiczne
+// konto IMDb tego użytkownika (istniejące zostaje).
 async function fanfilmAddImdbUser(urId)
 {
     const hosts = fanfilmHosts();
@@ -206,7 +211,7 @@ async function fanfilmAddImdbUser(urId)
     const results = await Promise.allSettled(hosts.map(send));
     results.forEach((r, i) => {
         if (r.status === 'rejected') {
-            console.error(`[FanFilm] Błąd dodawania imdb.user (${hosts[i]}):`, r.reason);
+            console.error(`[FanFilm] Błąd dodawania konta IMDb (${hosts[i]}):`, r.reason);
         }
     });
     const errors = results.filter(r => r.status === 'rejected').length;
@@ -254,7 +259,11 @@ async function fanfilmSendOne(host, options)
         },
         onload: function(response) {
             try {
-                console.log(`[FanFilm] Odpowiedź serwera ${host}:`, JSON.parse(response.responseText));
+                const resp = JSON.parse(response.responseText);
+                console.log(`[FanFilm] Odpowiedź serwera ${host}:`, resp);
+                if (resp && resp.warning) {
+                    fanfilmSendWarning = resp.warning;  // FanFilm says why the data is not usable
+                }
             } catch(e) {
                 console.log(`[FanFilm] Odpowiedź serwera ${host} (raw):`, response.responseText);
             }
@@ -514,7 +523,7 @@ async function fanfilmUpdate(options)
 
     const imdbUser = fanfilmExtractImdbUser();
     if (imdbUser) {
-        ffImdbUserAdd.textContent = `Dodaj ${imdbUser.nick} jako imdb.user`;
+        ffImdbUserAdd.textContent = `Dodaj ${imdbUser.nick} jako konto publiczne IMDb`;
         ffImdbUser.style.display = "block";
         ffImdbUserAdd.addEventListener("click", () => fanfilmAddImdbUser(imdbUser.id));
     }
@@ -534,6 +543,21 @@ async function fanfilmUpdate(options)
         }
     }
 
+    // Panel zawsze w oknie: po rozwinięciu, przeciągnięciu i zmianie rozmiaru okna (np. rozwinięty
+    // w dół panel przeciągnięty nisko albo dłuższy napis przycisku konta IMDb).
+    function keepInView() {
+        const rect = ffPanel.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight - 4 || rect.top < 0) {
+            ffPanel.style.top = Math.max(4, window.innerHeight - rect.height - 8) + "px";
+            ffPanel.style.bottom = "auto";
+        }
+        if (rect.right > window.innerWidth - 4 || rect.left < 0) {
+            ffPanel.style.left = Math.max(4, window.innerWidth - rect.width - 8) + "px";
+            ffPanel.style.right = "auto";
+        }
+    }
+    window.addEventListener("resize", keepInView);
+
     // Rozwijanie/zamykanie po kliknięciu w tytuł (tylko jeśli nie przeciągano)
     ffTitle.addEventListener("click", (e) => {
         // Jeśli właśnie skończono przeciąganie, ignoruj kliknięcie
@@ -542,6 +566,7 @@ async function fanfilmUpdate(options)
             return;
         }
         ffBody.style.display = (ffBody.style.display === "none") ? "block" : "none";
+        keepInView();
     });
 
     // Zwinięcie po kliknięciu poza panelem
@@ -584,6 +609,7 @@ async function fanfilmUpdate(options)
         if (!isDragging) return;
         isDragging = false;
         document.body.style.userSelect = "auto";
+        keepInView();
         if (wasDragged) {
             setTimeout(() => {
                 wasDragged = false;
