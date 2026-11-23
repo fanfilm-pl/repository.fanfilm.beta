@@ -67,7 +67,7 @@
         <platform>all</platform>
     </extension>
 </addon>
-<addon id="script.fanfilm.provider.fenom" name="FanFilm Providers: Fenom" version="2026.11.10.0" provider-name="FanFilm">
+<addon id="script.fanfilm.provider.fenom" name="FanFilm Providers: Fenom" version="2026.11.21.0" provider-name="FanFilm">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
   </requires>
@@ -90,7 +90,7 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.fanfilm.provider.ffork" name="FanFilm Providers: FanFilm forks" version="2026.11.10.0" provider-name="FanFilm">
+<addon id="script.fanfilm.provider.ffork" name="FanFilm Providers: FanFilm forks" version="2026.11.21.0" provider-name="FanFilm">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
   </requires>
