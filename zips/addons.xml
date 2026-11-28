@@ -1,12 +1,11 @@
 <?xml version='1.0' encoding='utf-8'?>
 <addons>
-<addon id="plugin.video.fanfilm" name="FanFilm" version="2026.11.23.1" provider-name="FF Team">
+<addon id="plugin.video.fanfilm" name="FanFilm" version="2026.11.28.0" provider-name="FF Team">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests"/>
         <import addon="script.module.future"/>
         <import addon="plugin.video.youtube" optional="true"/>
-        <import addon="script.module.pyxbmct"/>
         <import addon="script.module.resolveurl"/>
         <import addon="script.fanfilm.media" version="2026.11.10.0"/>
         <import addon="resource.font.fanfilm" version="2026.10.14.0" optional="true"/>
